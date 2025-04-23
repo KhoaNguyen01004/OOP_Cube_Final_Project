@@ -1,17 +1,32 @@
 import java.awt.*;
-import java.awt.event.*;
-import java.io.*;
-import java.net.Socket;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.Stack;
 import javax.swing.*;
 
 /**
  * GUI visualizer for the Rubik's Cube with manual controls.
  */
 public class CubeVisualizer {
+    /**
+     * Returns the inverse of a Rubik's cube move
+     * For example: R -> R', R' -> R, R2 -> R2
+     */
+    private static String getInverseMove(String move) {
+        if (move.endsWith("'")) {
+            // If it's a prime move, remove the prime
+            return move.substring(0, move.length() - 1);
+        } else if (move.endsWith("2")) {
+            // Double moves are their own inverse
+            return move;
+        } else {
+            // Regular move, add a prime
+            return move + "'";
+        }
+    }
+    
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
             JFrame frame = new JFrame("Rubik's Cube");
@@ -19,6 +34,9 @@ public class CubeVisualizer {
 
             Cube cube = new Cube();
             int scrambleCount = 20; // Number of moves to scramble
+
+            // Stack to track move history for undo functionality
+            Stack<String> moveHistory = new Stack<>();
 
             // Drawing panel for cube visualization
             JPanel drawPanel = new JPanel() {
@@ -55,6 +73,7 @@ public class CubeVisualizer {
                 JButton btn = new JButton(mv);
                 btn.addActionListener(e -> {
                     cube.move(mv);
+                    moveHistory.push(mv); // Store the move in history
                     status.setText("Last Move: " + mv + (cube.isSolved() ? " | SOLVED!" : ""));
                     drawPanel.repaint();
                 });
@@ -77,8 +96,24 @@ public class CubeVisualizer {
                 status.setText("Last Move: scramble");
                 drawPanel.repaint();
             });
+
+            // Undo button - reverses the last move
+            JButton undoBtn = new JButton("Undo");
+            undoBtn.addActionListener(e -> {
+                if (!moveHistory.isEmpty()) {
+                    String lastMove = moveHistory.pop();
+                    String inverseMove = getInverseMove(lastMove);
+                    cube.move(inverseMove);
+                    status.setText("Undid move: " + lastMove);
+                    drawPanel.repaint();
+                } else {
+                    status.setText("Nothing to undo");
+                }
+            });
+
             controlPanel.add(resetBtn);
             controlPanel.add(scrambleBtn);
+            controlPanel.add(undoBtn);
             
             // Panel for cube state input and solution display
             JPanel statePanel = new JPanel(new BorderLayout(5, 5));
